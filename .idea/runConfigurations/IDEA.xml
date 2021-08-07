@@ -9,6 +9,16 @@
     <shortenClasspath name="ARGS_FILE" />
     <option name="VM_PARAMETERS" value="-Xmx512m -XX:ReservedCodeCacheSize=240m -XX:+UseG1GC -XX:SoftRefLRUPolicyMSPerMB=50 -XX:MaxJavaStackTraceDepth=10000 -XX:CICompilerCount=2 -ea -Dsun.io.useCanonCaches=false -Dapple.laf.useScreenMenuBar=true -Dsun.awt.disablegrab=true -Didea.jre.check=true -Didea.is.internal=true -Didea.debug.mode=true -Djdk.attach.allowAttachSelf -Dfus.internal.test.mode=true -Dkotlinx.coroutines.debug=off -Djdk.module.illegalAccess.silent=true -Didea.config.path=../config/idea -Didea.system.path=../system/idea -Didea.initially.ask.config=true -Didea.platform.prefix=Idea" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/bin" />
+    <extension name="net.ashald.envfile">
+      <option name="IS_ENABLED" value="false" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" />
+      </ENTRIES>
+    </extension>
     <RunnerSettings RunnerId="Debug">
       <option name="DEBUG_PORT" value="60786" />
       <option name="TRANSPORT" value="0" />

@@ -1,0 +1,7 @@
+// EXTRACTION_TARGET: property with initializer
+
+private const val s = "abcdefg"
+
+fun foo() {
+    val string = s
+}

@@ -2,7 +2,6 @@
 
 package org.jetbrains.kotlin.idea.refactoring.introduce.introduceConstant
 
-import com.intellij.codeInsight.template.macro.SplitWordsMacro
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
@@ -30,7 +29,6 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.plainContent
 import org.jetbrains.kotlin.psi.stubs.elements.KtConstantExpressionElementType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStringTemplateExpressionElementType
-import java.util.function.Function
 
 class KotlinIntroduceConstantHandler(
     val helper: ExtractionEngineHelper = InteractiveExtractionHelper
@@ -133,7 +131,7 @@ class KotlinIntroduceConstantHandler(
         selectElements(editor, file) { elements, targets -> doInvoke(project, editor, file, elements, targets) }
     }
 
-    private fun selectElements(
+    fun selectElements(
         editor: Editor,
         file: KtFile,
         continuation: (elements: List<PsiElement>, targets: PsiElement) -> Unit

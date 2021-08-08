@@ -3697,6 +3697,29 @@ public abstract class ExtractionTestGenerated extends AbstractExtractionTest {
     }
 
     @RunWith(JUnit3RunnerWithInners.class)
+    @TestMetadata("testData/refactoring/introduceConstant")
+    public static class IntroduceConstant extends AbstractExtractionTest {
+        private void runTest(String testDataFilePath) throws Exception {
+            KotlinTestUtils.runTest(this::doIntroduceConstantTest, this, testDataFilePath);
+        }
+
+        @TestMetadata("extractInt.kt")
+        public void testExtractInt() throws Exception {
+            runTest("testData/refactoring/introduceConstant/extractInt.kt");
+        }
+
+        @TestMetadata("extractString.kt")
+        public void testExtractString() throws Exception {
+            runTest("testData/refactoring/introduceConstant/extractString.kt");
+        }
+
+        @TestMetadata("extractLazy.kt")
+        public void testExtractLazy() throws Exception {
+            runTest("testData/refactoring/introduceConstant/extractLazy.kt");
+        }
+    }
+
+    @RunWith(JUnit3RunnerWithInners.class)
     @TestMetadata("testData/refactoring/extractSuperclass")
     public static class ExtractSuperclass extends AbstractExtractionTest {
         private void runTest(String testDataFilePath) throws Exception {

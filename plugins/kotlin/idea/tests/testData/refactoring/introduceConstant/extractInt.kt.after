@@ -1,0 +1,7 @@
+// EXTRACTION_TARGET: property with initializer
+
+private const val i = 12345
+
+fun foo() {
+    val integer = i
+}

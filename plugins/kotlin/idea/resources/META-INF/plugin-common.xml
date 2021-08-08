@@ -60,7 +60,7 @@
       <add-to-group group-id="IntroduceActionsGroup" anchor="after" relative-to-action="IntroduceField"/>
     </action>
 
-    <action id="IntroduceConstant" class="org.jetbrains.kotlin.idea.refactoring.introduce.introduceConstant.IntroduceConstantAction"
+    <action id="IntroduceConstantKt" class="org.jetbrains.kotlin.idea.refactoring.introduce.introduceConstant.IntroduceConstantAction"
             use-shortcut-of="IntroduceConstant">
       <add-to-group group-id="IntroduceActionsGroup" anchor="after" relative-to-action="IntroduceProperty"/>
     </action>

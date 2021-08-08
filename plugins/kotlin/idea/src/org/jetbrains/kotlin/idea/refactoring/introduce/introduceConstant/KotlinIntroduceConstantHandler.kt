@@ -2,6 +2,7 @@
 
 package org.jetbrains.kotlin.idea.refactoring.introduce.introduceConstant
 
+import com.intellij.codeInsight.template.macro.SplitWordsMacro
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
@@ -9,27 +10,27 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.codeStyle.NameUtil
 import com.intellij.psi.util.elementType
 import com.intellij.refactoring.RefactoringActionHandler
 import org.jetbrains.kotlin.idea.KotlinBundle
 import org.jetbrains.kotlin.idea.core.util.CodeInsightUtils
-import org.jetbrains.kotlin.idea.refactoring.chooseContainerElement
+import org.jetbrains.kotlin.idea.refactoring.getExtractionContainers
 import org.jetbrains.kotlin.idea.refactoring.introduce.extractionEngine.*
 import org.jetbrains.kotlin.idea.refactoring.introduce.introduceProperty.KotlinInplacePropertyIntroducer
+import org.jetbrains.kotlin.idea.refactoring.introduce.selectElementsWithTargetSibling
 import org.jetbrains.kotlin.idea.refactoring.introduce.showErrorHint
 import org.jetbrains.kotlin.idea.refactoring.introduce.showErrorHintByKey
 import org.jetbrains.kotlin.idea.refactoring.introduce.validateExpressionElements
-import org.jetbrains.kotlin.idea.refactoring.selectElement
 import org.jetbrains.kotlin.idea.util.psi.patternMatching.toRange
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.stubs.elements.KtClassElementType
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.psiUtil.plainContent
 import org.jetbrains.kotlin.psi.stubs.elements.KtConstantExpressionElementType
-import org.jetbrains.kotlin.psi.stubs.elements.KtFileElementType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStringTemplateExpressionElementType
+import java.util.function.Function
 
 class KotlinIntroduceConstantHandler(
     val helper: ExtractionEngineHelper = InteractiveExtractionHelper
@@ -95,9 +96,9 @@ class KotlinIntroduceConstantHandler(
                             doNotChangeVar = false,
                             exprType = descriptor.returnType,
                             extractionResult = it,
-                            availableTargets = propertyTargets.filter { target -> target.isAvailable(descriptor) }
+                            availableTargets = listOf(ExtractionTarget.PROPERTY_WITH_GETTER)
                         )
-                        introducer.performInplaceRefactoring(LinkedHashSet(descriptor.suggestedNames))
+                        introducer.performInplaceRefactoring(LinkedHashSet(getNameSuggestions(property) + descriptor.suggestedNames))
                     } else {
                         processDuplicatesSilently(it.duplicateReplacers, project)
                     }
@@ -106,17 +107,25 @@ class KotlinIntroduceConstantHandler(
         }
     }
 
-    private fun validateElement(element: PsiElement): String? {
-        val errorMessage = validateExpressionElements(listOf(element))
+    private fun validateElements(elements: List<PsiElement>): String? {
+        val errorMessage = validateExpressionElements(elements)
         return when {
             errorMessage != null -> errorMessage
-            element.isNotConstant() -> KotlinBundle.message("error.text.can.t.introduce.constant.for.this.expression.because.not.constant")
+            elements.any { it.isNotConstant() } -> KotlinBundle.message("error.text.can.t.introduce.constant.for.this.expression.because.not.constant")
             else -> null
         }
     }
 
     private fun PsiElement.isNotConstant(): Boolean {
         return this.elementType !is KtConstantExpressionElementType && this.elementType !is KtStringTemplateExpressionElementType
+    }
+
+    private fun getNameSuggestions(property: KtProperty): List<String> {
+        val initializerValue = (property.initializer as? KtStringTemplateExpression)?.plainContent
+        val identifierValue = property.identifyingElement?.text
+
+        return listOfNotNull(initializerValue, identifierValue).map{ NameUtil.capitalizeAndUnderscore(it) }
+
     }
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile, dataContext: DataContext?) {
@@ -129,35 +138,20 @@ class KotlinIntroduceConstantHandler(
         file: KtFile,
         continuation: (elements: List<PsiElement>, targets: PsiElement) -> Unit
     ) {
-        selectElement(editor, file, listOf(CodeInsightUtils.ElementKind.EXPRESSION)) { element ->
-            if (element == null) throw RuntimeException("TODO, null element")
-            validateElement(element)?.let {
-                showErrorHint(file.project, editor, it, INTRODUCE_CONSTANT)
-                return@let
-            }
 
-            val fileElement = PsiTreeUtil.findFirstParent(element) {
-                it.elementType is KtFileElementType
-            }
-
-            val classElement = PsiTreeUtil.findFirstParent(element) { it.elementType is KtClassElementType }
-            val companionObject = PsiTreeUtil.findChildOfType(classElement, KtObjectDeclaration::class.java)
-
-            val potentialContainer = listOfNotNull(fileElement, companionObject)
-
-            if (potentialContainer.size == 1) {
-                continuation(listOf(element), potentialContainer.first().firstChild)
-            } else {
-                chooseContainerElement(
-                    potentialContainer,
-                    editor,
-                    KotlinBundle.message("title.select.target.code.block"),
-                    highlightSelection = true
-                ) {
-                    continuation(listOf(element), it.firstChild)
-                }
-            }
-        }
+        selectElementsWithTargetSibling(
+            INTRODUCE_CONSTANT,
+            editor,
+            file,
+            KotlinBundle.message("title.select.target.code.block"),
+            listOf(CodeInsightUtils.ElementKind.EXPRESSION),
+            ::validateElements,
+            { _, sibling ->
+                sibling.getExtractionContainers(strict = true, includeAll = true)
+                    .filter {(it is KtFile && !it.isScript()) }
+            },
+            continuation
+        )
     }
 
     override fun invoke(project: Project, elements: Array<out PsiElement>, dataContext: DataContext?) {

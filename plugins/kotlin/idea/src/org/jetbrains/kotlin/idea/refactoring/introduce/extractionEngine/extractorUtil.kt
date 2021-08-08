@@ -26,7 +26,6 @@ import org.jetbrains.kotlin.idea.intentions.RemoveExplicitTypeArgumentsIntention
 import org.jetbrains.kotlin.idea.refactoring.introduce.*
 import org.jetbrains.kotlin.idea.refactoring.introduce.extractionEngine.OutputValue.*
 import org.jetbrains.kotlin.idea.refactoring.introduce.extractionEngine.OutputValueBoxer.AsTuple
-import org.jetbrains.kotlin.idea.refactoring.move.moveMethod.type
 import org.jetbrains.kotlin.idea.refactoring.removeTemplateEntryBracesIfPossible
 import org.jetbrains.kotlin.idea.search.usagesSearch.descriptor
 import org.jetbrains.kotlin.idea.util.IdeDescriptorRenderers
@@ -75,7 +74,8 @@ private fun buildSignature(config: ExtractionGeneratorConfiguration, renderer: D
             config.descriptor.annotations.joinToString(separator = "\n", postfix = "\n") { renderer.renderAnnotation(it) }
         }
         val extraModifiers = config.descriptor.modifiers.map { it.value } +
-                listOfNotNull(if (shouldBeInline) KtTokens.INLINE_KEYWORD.value else null)
+                listOfNotNull(if (shouldBeInline) KtTokens.INLINE_KEYWORD.value else null) +
+                listOfNotNull(if (config.generatorOptions.isConst) KtTokens.CONST_KEYWORD.value else null)
         val modifiers = if (visibility.isNotEmpty()) listOf(visibility) + extraModifiers else extraModifiers
         modifier(annotations + modifiers.joinToString(separator = " "))
 
@@ -700,6 +700,6 @@ fun ExtractionGeneratorConfiguration.generateDeclaration(
     }
 
     CodeStyleManager.getInstance(descriptor.extractionData.project).reformat(declaration)
-    val type = declaration.type()
+
     return ExtractionResult(this, declaration, duplicateReplacers)
 }

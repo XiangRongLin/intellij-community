@@ -35,7 +35,7 @@ class KotlinIntroduceConstantHandler(
 ) : RefactoringActionHandler {
     object InteractiveExtractionHelper : ExtractionEngineHelper(INTRODUCE_CONSTANT) {
         private fun getExtractionTarget(descriptor: ExtractableCodeDescriptor) =
-            propertyTargets.firstOrNull { it.isAvailable(descriptor) } //TODO constantTargets companion object
+            propertyTargets.firstOrNull { it.isAvailable(descriptor) }
 
         override fun validate(descriptor: ExtractableCodeDescriptor) =
             descriptor.validate(getExtractionTarget(descriptor) ?: ExtractionTarget.FUNCTION)
@@ -115,7 +115,8 @@ class KotlinIntroduceConstantHandler(
     }
 
     private fun PsiElement.isNotConstant(): Boolean {
-        return this.elementType !is KtConstantExpressionElementType && this.elementType !is KtStringTemplateExpressionElementType
+        return this.elementType !is KtConstantExpressionElementType
+                && (this.elementType !is KtStringTemplateExpressionElementType || (this as KtStringTemplateExpression).hasInterpolation())
     }
 
     private fun getNameSuggestions(property: KtProperty): List<String> {

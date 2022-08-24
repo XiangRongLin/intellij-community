@@ -163,7 +163,17 @@ fun PsiElement.getAllExtractionContainers(strict: Boolean = true): List<KtElemen
     for (element in parents) {
         val isValidContainer = when (element) {
             is KtFile -> true
-            is KtClassBody -> !objectOrNonInnerNestedClassFound || element.parent is KtObjectDeclaration
+            is KtClassBody -> {
+                if (!objectOrNonInnerNestedClassFound) {
+                    element.children.firstOrNull { child -> child is KtObjectDeclaration }
+                        ?.children?.firstOrNull { grandchild -> grandchild is KtClassBody }
+                        ?.let { objectClassBody ->
+                            containers.add(objectClassBody as KtElement)
+                            objectOrNonInnerNestedClassFound = true
+                        }
+                }
+                !objectOrNonInnerNestedClassFound || element.parent is KtObjectDeclaration
+            }
             is KtBlockExpression -> !objectOrNonInnerNestedClassFound
             else -> false
         }

@@ -9,6 +9,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.codeStyle.NameUtil
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.RefactoringActionHandler
 import org.jetbrains.annotations.Nls
 import org.jetbrains.kotlin.idea.base.resources.KotlinBundle
@@ -16,14 +17,14 @@ import org.jetbrains.kotlin.idea.base.psi.unifier.toRange
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.util.ElementKind
 import org.jetbrains.kotlin.idea.refactoring.getExtractionContainers
+import org.jetbrains.kotlin.idea.refactoring.introduce.*
 import org.jetbrains.kotlin.idea.refactoring.introduce.extractionEngine.*
 import org.jetbrains.kotlin.idea.refactoring.introduce.introduceProperty.KotlinInplacePropertyIntroducer
-import org.jetbrains.kotlin.idea.refactoring.introduce.selectElementsWithTargetSibling
-import org.jetbrains.kotlin.idea.refactoring.introduce.showErrorHint
-import org.jetbrains.kotlin.idea.refactoring.introduce.showErrorHintByKey
 import org.jetbrains.kotlin.idea.refactoring.introduce.validateExpressionElements
 import org.jetbrains.kotlin.idea.util.application.isUnitTestMode
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.getOutermostParentContainedIn
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.psi.psiUtil.plainContent
 import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
@@ -113,16 +114,43 @@ class KotlinIntroduceConstantHandler(
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile, dataContext: DataContext?) {
         if (file !is KtFile) return
-        selectElements(editor, file) { elements, targets -> doInvoke(project, editor, file, elements, targets) }
+        selectElements(editor, file) { elements, target -> doInvoke(project, editor, file, elements, target) }
     }
 
     fun selectElements(
         editor: Editor,
         file: KtFile,
-        continuation: (elements: List<PsiElement>, targets: PsiElement) -> Unit
+        continuation: (elements: List<PsiElement>, target: PsiElement) -> Unit
     ) {
+        fun onSelectionComplete(elements: List<PsiElement>, targetContainer: PsiElement) {
+            val physicalElements = elements.map { it.substringContextOrThis }
+            val parent = PsiTreeUtil.findCommonParent(physicalElements)
+                ?: throw AssertionError("Should have at least one parent: ${physicalElements.joinToString("\n")}")
 
-        selectElementsWithTargetSibling(
+            if (parent == targetContainer) {
+                continuation(elements, physicalElements.first())
+                return
+            }
+
+            val sourceInObject = elements.any { it.getStrictParentOfType<KtObjectDeclaration>() != null }
+            val targetInObject = targetContainer.getStrictParentOfType<KtObjectDeclaration>() != null
+
+            if (sourceInObject && (targetInObject || targetContainer is KtFile)) {
+                val outermostParent = parent.getOutermostParentContainedIn(targetContainer)
+
+                if (outermostParent == null) {
+                    showErrorHintByKey(file.project, editor, "cannot.refactor.no.container", INTRODUCE_CONSTANT)
+                    return
+                }
+
+                continuation(elements, outermostParent)
+            } else {
+
+                continuation(elements, targetContainer.children.first())
+            }
+        }
+
+        selectElementsWithTargetParent(
             INTRODUCE_CONSTANT,
             editor,
             file,
@@ -131,9 +159,9 @@ class KotlinIntroduceConstantHandler(
             ::validateElements,
             { _, sibling ->
                 sibling.getExtractionContainers(strict = true, includeAll = true)
-                    .filter { (it is KtFile && !it.isScript()) }
+                    .filter { (it is KtFile && !it.isScript() || (it is KtClassBody && it.parent is KtObjectDeclaration && it.children.isNotEmpty())) }
             },
-            continuation
+            ::onSelectionComplete
         )
     }
 
@@ -147,6 +175,7 @@ class KotlinIntroduceConstantHandler(
             } -> KotlinBundle.message(
                 "error.text.can.t.introduce.constant.for.this.expression.because.not.constant"
             )
+
             else -> null
         }
     }
